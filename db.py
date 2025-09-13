@@ -1,5 +1,7 @@
 import sqlalchemy
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+import os
+import sys
 
 Base = declarative_base()
 
@@ -40,7 +42,7 @@ engine = None
 
 def init():
     global engine
-    engine = sqlalchemy.create_engine('sqlite:///library.db')
+    engine = sqlalchemy.create_engine(f'sqlite:///{os.path.join(os.getenv('HOMEPATH'), 'shura.db')}')
     Base.metadata.create_all(engine)
     return engine
 

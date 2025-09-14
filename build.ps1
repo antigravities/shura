@@ -1,0 +1,1 @@
+python -m nuitka --follow-imports --python-flag=-m --onefile shura

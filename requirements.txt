@@ -3,3 +3,4 @@ sqlalchemy==2.0.43
 pywin32==311
 wmi==1.5.1
 vdf==3.4
+steam==1.4.4

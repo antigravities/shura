@@ -5,9 +5,21 @@ import os
 import subprocess
 from . import scan
 from . import db
+import steam.client
+import steam.enums
 
 console = rich.console.Console()
 options = []
+sc = None
+
+def steam_client():
+    global sc
+    if sc is None:
+        sc = steam.client.SteamClient()
+        
+        if sc.anonymous_login() != steam.enums.EResult.OK:
+            raise RuntimeError("Failed to login to Steam anonymously")
+    return sc
 
 def option(title):
     def decorator(function):
@@ -64,7 +76,7 @@ def option_inspect_applications():
         return
 
     while True:
-        choice = picker(f"Application {app.name} ({app.appid}) on {app.volume.label or 'No Label'}", ["Install now"], True)
+        choice = picker(f"Application {app.name} ({app.appid}) on {app.volume.label or 'No Label'}", ["Install now", "Check for updates"], True)
 
         if choice is None:
             return
@@ -78,7 +90,30 @@ def option_inspect_applications():
                 subprocess.Popen(["C:\\Program Files (x86)\\Steam\\steam.exe", "-install", os.path.join(info[0] + "\\", app.location)])
 
             console.input("Press Enter to continue...")
+        elif choice == 1:
+            sc = steam_client()
 
+            with db.session() as session:
+                refresh = session.get(db.Application, app.id)
+                appinfo = sc.get_product_info(apps=[refresh.appid])['apps']
+
+                if not appinfo or refresh.appid not in appinfo:
+                    console.print(f"[red]Failed to fetch app info from Steam.[/red]")
+                else:
+                    for manifest in refresh.manifests:
+                        try:
+                            if (
+                                str(manifest.depot) in appinfo[refresh.appid]['depots'] and
+                                manifest.manifest != appinfo[refresh.appid]['depots'][str(manifest.depot)]['manifests']['public']['gid']
+                            ):
+                                console.print(f"[yellow]Depot {manifest.depot} has an update available.[/yellow]")
+                                continue
+                            else:
+                                console.print(f"[green]Depot {manifest.depot} is up to date.[/green]")
+                        except Exception as e:
+                            console.print(f"[red]Error checking depot {manifest.depot}: {e}[/red]")
+
+                console.input("Press Enter to continue...")
 
 @option("Scan volumes for applications")
 def option_scan():
